@@ -1,3 +1,4 @@
+import { SpeedInsights } from "@vercel/speed-insights/next"
 // server.js
 const express = require('express');
 const app = express();
