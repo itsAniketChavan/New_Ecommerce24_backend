@@ -1,8 +1,10 @@
 
 const Product = require("../models/productModel");
+const { uploadImage, destroyImage } = require("../utils/cloudinary");
  
 
 // Create a new product
+
 exports.createProduct = async (req, res) => {
   try {
     const {
@@ -18,13 +20,24 @@ exports.createProduct = async (req, res) => {
       user,
     } = req.body;
 
+    // Upload images to Cloudinary and get their URLs
+    const imageUploads = await Promise.all(
+      images.map(async (imageBase64) => {
+        const uploadedImage = await uploadImage(imageBase64);
+        return {
+          public_id: uploadedImage.public_id,
+          url: uploadedImage.url,
+        };
+      })
+    );
+
     // Create a new product
     const product = new Product({
       name,
       description,
       price,
       ratings,
-      images,
+      images: imageUploads,
       category,
       stock,
       numOfReviews,
@@ -35,7 +48,11 @@ exports.createProduct = async (req, res) => {
     // Save the product to the database
     await product.save();
 
-    res.status(201).json({ success: true, message: "Product created successfully", product });
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      product,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

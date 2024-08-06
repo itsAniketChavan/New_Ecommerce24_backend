@@ -4,8 +4,10 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 require("dotenv").config();
- 
 
+
+// index.js
+ 
 // Load allowed origins from environment variables
 const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [];
 

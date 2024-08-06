@@ -1,32 +1,28 @@
 const User = require("../models/userModel");
 const Order = require("../models/orderModel");
 
-const bcrypt = require('bcryptjs');
-const generateToken = require('../utils/generateToken');
- 
+const bcrypt = require("bcryptjs");
+const generateToken = require("../utils/generateToken");
+const { uploadImage, destroyImage } = require("../utils/cloudinary");
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
     // Find the user by email and include the password for comparison
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
-     
-      return res.status(401).json({ message: 'User Not Found' });
+      return res.status(401).json({ message: "User Not Found" });
     }
 
     // Compare the provided password with the stored hashed password
     bcrypt.compare(password, user.password, (err, result) => {
       if (err) {
-        
-        return res.status(500).json({ message: 'Server error' });
+        return res.status(500).json({ message: "Server error" });
       }
 
       if (result) {
-       
-        
         const token = generateToken(user._id);
 
         // Remove the password from the user object before sending the response
@@ -34,49 +30,56 @@ exports.login = async (req, res) => {
 
         res.status(200).json({
           success: true,
-          message: 'Login successful',
+          message: "Login successful",
           user: userWithoutPassword,
           token,
         });
       } else {
-        
-        res.status(401).json({ message: 'Invalid email or password' });
+        res.status(401).json({ message: "Invalid email or password" });
       }
     });
   } catch (error) {
- 
     res.status(500).json({ message: error.message });
   }
 };
 
-
 // Create a new user
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    
+    const { name, email, password, avatar } = req.body;
+
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
       return res.status(400).json({ message: "User already exists" });
     }
- 
-     
+    let avatar_url = "";
+    let public_id = "";
+    if (avatar) {
+      const result = await uploadImage(avatar);
+      if (result) {
+        avatar_url = result.url;
+        public_id = result.public_id;
+      }
+    }
+
     user = new User({
       name,
       email,
       password,
       avatar: {
-        public_id: 'default_avatar_public_id',
-        url: 'default_avatar_url',
+        public_id: public_id,
+        url: avatar_url,
       },
     });
 
     await user.save();
 
-    user = await User.findById(user._id).select('-password');
+    user = await User.findById(user._id).select("-password");
 
-    res.status(201).json({ success: true, message: "User created successfully", user});
+    res
+      .status(201)
+      .json({ success: true, message: "User created successfully", user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -84,8 +87,8 @@ exports.createUser = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
-    const  id  = req.params.id;
-    const { name, email, password, avatar } = req.body;
+    const id = req.params.id;
+    const { name, email, password, avatarPath } = req.body;
 
     // Find the user by ID
     let user = await User.findById(id);
@@ -102,17 +105,35 @@ exports.updateUser = async (req, res) => {
       user.email = email;
     }
 
+    
+    if (avatarPath) {
+      const destroyResult = await destroyImage(user.avatar.public_id);
+      
+      if (!destroyResult) {
+        return res.status(500).json({ message: "Error destroying old avatar" });
+      }
+
+      // Upload the new avatar
+      const uploadResult = await uploadImage(avatarPath);
+      if (uploadResult) {
+        user.avatar = {
+          public_id: uploadResult.public_id,
+          url: uploadResult.url,
+        };
+      } else {
+        return res.status(500).json({ message: "Error uploading new avatar" });
+      }
+    }
+
     // Update user fields
     if (name) user.name = name;
     if (password) user.password = password; // password will be hashed by the schema pre-save hook
-    if (avatar) user.avatar = avatar;
 
     await user.save();
 
-    // Exclude password from the response
-    user = await User.findById(id).select('-password');
-
-    res.status(200).json({ success: true, message: "User updated successfully", user });
+    res
+      .status(200)
+      .json({ success: true, message: "User updated successfully", user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -120,7 +141,7 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    const  id  = req.params.id;
+    const id = req.params.id;
 
     // Find the user by ID
     let user = await User.findById(id);
@@ -130,7 +151,9 @@ exports.deleteUser = async (req, res) => {
 
     await User.findByIdAndDelete(id);
 
-    res.status(200).json({ success: true, message: "User deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -138,9 +161,9 @@ exports.deleteUser = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    const  id  = req.params.id;
+    const id = req.params.id;
 
-    let user = await User.findById(id).select('-password');
+    let user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -153,7 +176,7 @@ exports.getUserById = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    let users = await User.find().select('-password'); // Adjust the select part to exclude any sensitive fields if necessary
+    let users = await User.find().select("-password"); // Adjust the select part to exclude any sensitive fields if necessary
 
     if (users.length === 0) {
       return res.status(404).json({ message: "No users found" });
@@ -170,22 +193,22 @@ exports.getOrdersForUser = async (req, res) => {
     const id = req.params.id;
 
     // Find the user by ID
-    const user = await User.findById(id).select('-password');
+    const user = await User.findById(id).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-console
+    console;
     // Find all orders for the user
-    const orders = await Order.find({ user: id }).populate('orderItems.product');
-// 
-//     if (orders.length === 0) {
-//       return res.status(404).json({ message: "No orders found for this user" });
-//     }
+    const orders = await Order.find({ user: id }).populate(
+      "orderItems.product"
+    );
+    //
+    //     if (orders.length === 0) {
+    //       return res.status(404).json({ message: "No orders found for this user" });
+    //     }
 
     res.status(200).json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
- 
