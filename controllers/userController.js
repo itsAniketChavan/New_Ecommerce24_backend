@@ -4,7 +4,7 @@ const Order = require("../models/orderModel");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { uploadImage, destroyImage } = require("../utils/cloudinary");
-
+ 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -197,7 +197,7 @@ exports.getOrdersForUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    console;
+     
     // Find all orders for the user
     const orders = await Order.find({ user: id }).populate(
       "orderItems.product"
@@ -212,3 +212,5 @@ exports.getOrdersForUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+ 

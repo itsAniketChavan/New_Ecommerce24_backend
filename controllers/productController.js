@@ -2,6 +2,7 @@
 const Product = require("../models/productModel");
 const { uploadImage, destroyImage } = require("../utils/cloudinary");
  
+ 
 
 // Create a new product
 
@@ -21,15 +22,14 @@ exports.createProduct = async (req, res) => {
     } = req.body;
 
     // Upload images to Cloudinary and get their URLs
-    const imageUploads = await Promise.all(
-      images.map(async (imageBase64) => {
-        const uploadedImage = await uploadImage(imageBase64);
-        return {
-          public_id: uploadedImage.public_id,
-          url: uploadedImage.url,
-        };
-      })
-    );
+    const imageUploads = [];
+    for (const imageBase64 of images) {
+      const uploadedImage = await uploadImage(imageBase64);
+      imageUploads.push({
+        public_id: uploadedImage.public_id,
+        url: uploadedImage.url,
+      });
+    }
 
     // Create a new product
     const product = new Product({
