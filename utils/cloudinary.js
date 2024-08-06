@@ -20,7 +20,7 @@ exports.uploadImage = async (imagePath) => {
 exports.destroyImage = async (publicId) => {
     try {
       const result = await cloudinary.uploader.destroy(publicId);
-      console.log('Destroy successful:', result);
+      
       return result;
     } catch (error) {
       console.error('Error destroying image:', error);
